@@ -43,6 +43,15 @@ export interface HeatmapData {
     width: number;
     height: number;
   }[];
+  data_points?: {
+    id: string;
+    latitude: number | null;
+    longitude: number | null;
+    timestamp?: string;
+    total_flowers?: number;
+    flower_count?: number;
+    [key: string]: unknown;
+  }[];
   total_count?: number;
   [key: string]: unknown;
 }

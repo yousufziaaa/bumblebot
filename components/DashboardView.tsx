@@ -230,6 +230,60 @@ export default function DashboardView() {
   }
   const maxRowCount = Math.max(...rowBuckets.map((r) => r.count), 1);
 
+  /* ── spatial heatmap zones from API (supports zones + data_points) ───── */
+  const spatialZones = (() => {
+    const heatmap = data?.heatmap;
+    if (!heatmap) return [];
+
+    if (Array.isArray(heatmap.zones) && heatmap.zones.length > 0) {
+      return heatmap.zones;
+    }
+
+    if (!Array.isArray(heatmap.data_points) || heatmap.data_points.length === 0) {
+      return [];
+    }
+
+    const located = heatmap.data_points.filter(
+      (p) =>
+        typeof p.latitude === "number" &&
+        Number.isFinite(p.latitude) &&
+        typeof p.longitude === "number" &&
+        Number.isFinite(p.longitude)
+    );
+    if (located.length === 0) return [];
+
+    const lats = located.map((p) => p.latitude as number);
+    const lons = located.map((p) => p.longitude as number);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLon = Math.min(...lons);
+    const maxLon = Math.max(...lons);
+    const latSpan = Math.max(maxLat - minLat, 1e-9);
+    const lonSpan = Math.max(maxLon - minLon, 1e-9);
+
+    return located.map((p, i) => {
+      const count =
+        typeof p.total_flowers === "number"
+          ? p.total_flowers
+          : typeof p.flower_count === "number"
+          ? p.flower_count
+          : 0;
+      const size = 12;
+      const xNorm = ((p.longitude as number) - minLon) / lonSpan;
+      const yNorm = 1 - ((p.latitude as number) - minLat) / latSpan;
+
+      return {
+        id: p.id ?? `pt-${i}`,
+        label: `Point ${i + 1}`,
+        count,
+        x: Math.max(0, Math.min(100 - size, xNorm * (100 - size))),
+        y: Math.max(0, Math.min(100 - size, yNorm * (100 - size))),
+        width: size,
+        height: size,
+      };
+    });
+  })();
+
   /* ── timeline data ──────────────────────────────────────────────── */
   const timelineData = sortedDetails.map((d, i) => ({
     idx: i + 1,
@@ -818,7 +872,7 @@ export default function DashboardView() {
           <div style={sectionLabel}>SPATIAL HEATMAP</div>
           {errors.heatmap ? (
             <SectionError msg={errors.heatmap} />
-          ) : data.heatmap.zones && data.heatmap.zones.length > 0 ? (
+          ) : spatialZones.length > 0 ? (
             <>
               <div
                 style={{
@@ -843,10 +897,10 @@ export default function DashboardView() {
                 />
                 {(() => {
                   const maxZ = Math.max(
-                    ...data.heatmap.zones!.map((z) => z.count),
+                    ...spatialZones.map((z) => z.count),
                     1
                   );
-                  return data.heatmap.zones!.map((zone) => {
+                  return spatialZones.map((zone) => {
                     const c = heatColor(zone.count, maxZ);
                     return (
                       <div
@@ -906,7 +960,7 @@ export default function DashboardView() {
                 letterSpacing: "0.08em",
               }}
             >
-              NO ZONE DATA
+              NO LOCATION DATA
             </div>
           )}
         </div>
