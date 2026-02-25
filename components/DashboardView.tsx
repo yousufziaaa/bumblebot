@@ -13,7 +13,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { RefreshCw, Loader2, AlertCircle, ImageIcon } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle, ImageIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   getHeatmapData,
   listVideoClassifications,
@@ -120,6 +120,173 @@ function Thumbnail({ id, style }: { id: string; style?: React.CSSProperties }) {
   );
 }
 
+/* ─── image lightbox with keyboard nav ────────────────────────────── */
+function ImageLightbox({
+  ids,
+  index,
+  onClose,
+  onNav,
+}: {
+  ids: string[];
+  index: number;
+  onClose: () => void;
+  onNav: (idx: number) => void;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  const currentId = ids[index];
+
+  useEffect(() => {
+    setSrc(null);
+    setErr(false);
+    let cancelled = false;
+    fetch(`${BASE_URL}/api/images/${currentId}`)
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.blob();
+      })
+      .then((b) => {
+        if (!cancelled) setSrc(URL.createObjectURL(b));
+      })
+      .catch(() => {
+        if (!cancelled) setErr(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentId]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && index > 0) onNav(index - 1);
+      if (e.key === "ArrowRight" && index < ids.length - 1) onNav(index + 1);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [index, ids.length, onClose, onNav]);
+
+  const navBtn: React.CSSProperties = {
+    position: "absolute",
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "rgba(255,255,255,0.1)",
+    border: "none",
+    borderRadius: "50%",
+    width: 40,
+    height: 40,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    color: "#fff",
+    backdropFilter: "blur(4px)",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.85)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "zoom-out",
+      }}
+    >
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          background: "rgba(255,255,255,0.1)",
+          border: "none",
+          borderRadius: "50%",
+          width: 36,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          color: "#fff",
+        }}
+      >
+        <X size={18} />
+      </button>
+
+      {ids.length > 1 && index > 0 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNav(index - 1); }}
+          style={{ ...navBtn, left: 16 }}
+        >
+          <ChevronLeft size={22} />
+        </button>
+      )}
+
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: "85vw", maxHeight: "85vh", cursor: "default" }}
+      >
+        {!src && !err && <Loader2 size={28} color="#fff" className="pulse" />}
+        {err && (
+          <div
+            style={{
+              color: "rgba(255,255,255,0.6)",
+              fontFamily: "var(--mono)",
+              fontSize: 13,
+              textAlign: "center",
+            }}
+          >
+            <ImageIcon size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
+            <br />
+            Image not available
+          </div>
+        )}
+        {src && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt="Capture"
+            style={{
+              maxWidth: "85vw",
+              maxHeight: "85vh",
+              borderRadius: 8,
+              objectFit: "contain",
+            }}
+          />
+        )}
+      </div>
+
+      {ids.length > 1 && index < ids.length - 1 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNav(index + 1); }}
+          style={{ ...navBtn, right: 16 }}
+        >
+          <ChevronRight size={22} />
+        </button>
+      )}
+
+      {ids.length > 1 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 20,
+            fontFamily: "var(--mono)",
+            fontSize: 12,
+            color: "rgba(255,255,255,0.6)",
+          }}
+        >
+          {index + 1} / {ids.length}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── types ───────────────────────────────────────────────────────── */
 interface DashData {
   records: VideoClassification[];
@@ -133,6 +300,17 @@ export default function DashboardView() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [lightbox, setLightbox] = useState<{ ids: string[]; index: number } | null>(null);
+
+  const openLightbox = useCallback((ids: string[], index = 0) => {
+    setLightbox({ ids, index });
+  }, []);
+
+  const closeLightbox = useCallback(() => setLightbox(null), []);
+
+  const navLightbox = useCallback((idx: number) => {
+    setLightbox((prev) => (prev ? { ...prev, index: idx } : null));
+  }, []);
 
   /* ── fetch all data ─────────────────────────────────────────────── */
   const fetchAll = useCallback(async () => {
@@ -148,12 +326,11 @@ export default function DashboardView() {
       errs.records = e instanceof Error ? e.message : "Failed to load records";
     }
 
-    // 2. fetch details for up to 20 most recent records
+    // 2. fetch details for all records
     let details: ClassificationResult[] = [];
     if (records.length > 0) {
-      const recent = records.slice(-20);
       const settled = await Promise.allSettled(
-        recent.map((r) => getClassification(r.record_id))
+        records.map((r) => getClassification(r.record_id))
       );
       details = settled
         .filter((s): s is PromiseFulfilledResult<ClassificationResult> => s.status === "fulfilled")
@@ -215,9 +392,9 @@ export default function DashboardView() {
   const sortedDetails = [...(data?.details ?? [])].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
-  const rowBuckets: { label: string; count: number }[] = Array.from(
+  const rowBuckets: { label: string; count: number; captureIds: string[] }[] = Array.from(
     { length: 6 },
-    (_, i) => ({ label: `Row ${i + 1}`, count: 0 })
+    (_, i) => ({ label: `Row ${i + 1}`, count: 0, captureIds: [] })
   );
   if (sortedDetails.length > 0) {
     sortedDetails.forEach((d, i) => {
@@ -226,6 +403,7 @@ export default function DashboardView() {
         5
       );
       rowBuckets[bucket].count += d.flower_count;
+      rowBuckets[bucket].captureIds.push(d.id);
     });
   }
   const maxRowCount = Math.max(...rowBuckets.map((r) => r.count), 1);
@@ -574,13 +752,16 @@ export default function DashboardView() {
             >
               {rowBuckets.map((row) => {
                 const c = heatColor(row.count, maxRowCount);
+                const clickable = row.captureIds.length > 0;
                 return (
                   <div
                     key={row.label}
+                    onClick={clickable ? () => openLightbox(row.captureIds) : undefined}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
+                      cursor: clickable ? "pointer" : "default",
                     }}
                   >
                     <span
@@ -905,7 +1086,8 @@ export default function DashboardView() {
                     return (
                       <div
                         key={zone.id}
-                        title={`${zone.label}: ${zone.count}`}
+                        title={`${zone.label}: ${zone.count} — click to view`}
+                        onClick={() => openLightbox([zone.id])}
                         style={{
                           position: "absolute",
                           left: `${zone.x}%`,
@@ -919,6 +1101,16 @@ export default function DashboardView() {
                           flexDirection: "column",
                           alignItems: "center",
                           justifyContent: "center",
+                          cursor: "pointer",
+                          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = "scale(1.08)";
+                          (e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 12px ${c.border}`;
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
+                          (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
                         }}
                       >
                         <div
@@ -964,6 +1156,15 @@ export default function DashboardView() {
             </div>
           )}
         </div>
+      )}
+
+      {lightbox && (
+        <ImageLightbox
+          ids={lightbox.ids}
+          index={lightbox.index}
+          onClose={closeLightbox}
+          onNav={navLightbox}
+        />
       )}
     </div>
   );
