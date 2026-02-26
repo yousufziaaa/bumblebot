@@ -348,6 +348,24 @@ export default function DashboardView() {
       errs.heatmap = e instanceof Error ? e.message : "Failed to load heatmap";
     }
 
+    // Fallback: populate details from heatmap data_points when
+    // video-classifications returned nothing (image-only classifications
+    // only appear in the heatmap endpoint).
+    if (details.length === 0 && heatmap?.data_points?.length) {
+      details = heatmap.data_points.map((dp) => ({
+        id: dp.id,
+        image_path: "",
+        location:
+          dp.latitude != null && dp.longitude != null
+            ? { latitude: dp.latitude, longitude: dp.longitude }
+            : null,
+        timestamp: dp.timestamp ?? new Date().toISOString(),
+        flowers: dp.flowers ?? [],
+        flower_count: dp.total_flowers ?? dp.flower_count ?? dp.flowers?.length ?? 0,
+        stage_summary: dp.stage_counts ? { ...dp.stage_counts } : {},
+      }));
+    }
+
     setData({ records, details, heatmap });
     setErrors(errs);
     setLastUpdated(new Date());
