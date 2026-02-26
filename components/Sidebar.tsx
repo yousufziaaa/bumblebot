@@ -1,10 +1,10 @@
 "use client";
 
-import { Upload, LayoutDashboard, Clock, PlayCircle, Wifi, WifiOff } from "lucide-react";
+import { Upload, LayoutDashboard, Clock, PlayCircle, Grid3X3, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { checkHealth } from "@/lib/api";
 
-type View = "upload" | "dashboard" | "history" | "demo";
+type View = "upload" | "dashboard" | "gallery" | "history" | "demo";
 
 interface SidebarProps {
   activeView: View;
@@ -23,6 +23,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const nav = [
     { id: "upload" as View, label: "Classify", icon: Upload, orange: false },
     { id: "dashboard" as View, label: "Dashboard", icon: LayoutDashboard, orange: false },
+    { id: "gallery" as View, label: "Gallery", icon: Grid3X3, orange: false },
     { id: "history" as View, label: "History", icon: Clock, orange: false },
     { id: "demo" as View, label: "Demo Mode", icon: PlayCircle, orange: true },
   ];

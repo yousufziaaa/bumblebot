@@ -5,9 +5,10 @@ import Sidebar from "@/components/Sidebar";
 import ClassifyView from "@/components/ClassifyView";
 import DashboardView from "@/components/DashboardView";
 import HistoryView from "@/components/HistoryView";
+import GalleryView from "@/components/GalleryView";
 import DemoView from "@/components/DemoView";
 
-type View = "upload" | "dashboard" | "history" | "demo";
+type View = "upload" | "dashboard" | "gallery" | "history" | "demo";
 
 export default function Home() {
   const [activeView, setActiveView] = useState<View>("upload");
@@ -47,6 +48,7 @@ export default function Home() {
       >
         {activeView === "upload" && <ClassifyView />}
         {activeView === "dashboard" && <DashboardView />}
+        {activeView === "gallery" && <GalleryView />}
         {activeView === "history" && <HistoryView />}
         {activeView === "demo" && <DemoView />}
       </main>

@@ -33,6 +33,18 @@ export interface ClassificationResult {
   stage_summary: Record<string, unknown>;
 }
 
+export interface HeatmapDataPoint {
+  id: string;
+  latitude: number | null;
+  longitude: number | null;
+  timestamp?: string;
+  flowers?: Flower[];
+  total_flowers?: number;
+  flower_count?: number;
+  stage_counts?: Record<string, number>;
+  [key: string]: unknown;
+}
+
 export interface HeatmapData {
   zones?: {
     id: string;
@@ -43,15 +55,8 @@ export interface HeatmapData {
     width: number;
     height: number;
   }[];
-  data_points?: {
-    id: string;
-    latitude: number | null;
-    longitude: number | null;
-    timestamp?: string;
-    total_flowers?: number;
-    flower_count?: number;
-    [key: string]: unknown;
-  }[];
+  data_points?: HeatmapDataPoint[];
+  total_records?: number;
   total_count?: number;
   [key: string]: unknown;
 }
