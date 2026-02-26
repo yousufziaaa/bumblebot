@@ -374,7 +374,7 @@ export default function DashboardView() {
 
   useEffect(() => {
     fetchAll();
-    timerRef.current = setInterval(fetchAll, 30_000);
+    timerRef.current = setInterval(fetchAll, 120_000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -532,7 +532,7 @@ export default function DashboardView() {
                   color: "var(--text-faint)",
                 }}
               >
-                Updated {lastUpdated.toLocaleTimeString()} · auto-refresh 30s
+                Updated {lastUpdated.toLocaleTimeString()} · auto-refresh 2m
               </span>
             )}
           </div>
